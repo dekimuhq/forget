@@ -1,0 +1,105 @@
+name: CI
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+  workflow_dispatch:
+  # release.yml runs the full suite on the commit it publishes.
+  workflow_call:
+  # Decay watch: a test can go red on a DATE rather than on a commit (a fixture
+  # with a hard-coded expiry does exactly that). A quiet repo gets no
+  # push-triggered runs, so the suite also runs on a schedule, followed by the
+  # clock-drift probe below.
+  schedule:
+    - cron: "41 6 * * 1,4"
+
+# Read-only token; no secrets are used anywhere in this workflow.
+permissions:
+  contents: read
+
+concurrency:
+  # github.workflow is the CALLER's name under workflow_call, so a release's
+  # suite never shares (and gets cancelled by) a push run's group.
+  group: ci-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  ci:
+    name: ci (node ${{ matrix.node }})
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    strategy:
+      fail-fast: false
+      matrix:
+        # 22 = the engines floor (`>=22`, the oldest maintained Node line).
+        # 24 = current LTS; the clock-drift probe runs there only.
+        node: ['22', '24']
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          persist-credentials: false
+
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version: ${{ matrix.node }}
+          cache: npm
+
+      # --ignore-scripts: never run install scripts from a PR-authored lockfile.
+      # Every @dekimuhq/* dependency is a workspace link; nothing is fetched
+      # from a private registry.
+      - name: Install dependencies
+        run: npm ci --ignore-scripts
+
+      # Packages import each other through their built dist/, so typecheck and
+      # test both need a topological build first.
+      - name: Build packages (topological)
+        run: npm run build
+
+      - name: Typecheck
+        run: npm run typecheck
+
+      - name: Test
+        run: npm test
+
+      # Clock-drift probe (schedule/manual only): re-runs the suite with the wall
+      # clock pushed +400 days. The Test step above gates the job, so a failure
+      # here means "passes now, fails on a later date". Workspace-level only:
+      # npm stops the fan-out at the first failing workspace.
+      - name: Clock-drift probe
+        if: matrix.node == '24' && (github.event_name == 'schedule' || github.event_name == 'workflow_dispatch')
+        shell: bash
+        run: |
+          set +e
+          WORK="$(mktemp -d)"
+          trap 'rm -rf "$WORK"' EXIT
+          cat > "$WORK/clock-shift.mjs" <<'SHIM'
+          // Offset (not freeze) the wall clock by CLOCK_OFFSET_DAYS; explicit
+          // Date arguments pass through, only "what time is it now" moves.
+          const days = Number(process.env.CLOCK_OFFSET_DAYS || 0);
+          if (days) {
+            const OFF = days * 86400000;
+            const RealDate = Date;
+            globalThis.Date = new Proxy(RealDate, {
+              construct(T, a) { return a.length ? new RealDate(...a) : new RealDate(RealDate.now() + OFF); },
+              get(T, p, r) { return p === "now" ? () => RealDate.now() + OFF : Reflect.get(T, p, r); },
+            });
+          }
+          SHIM
+          CLOCK_OFFSET_DAYS=400 NODE_OPTIONS="--import $WORK/clock-shift.mjs" npm test > "$WORK/drift.log" 2>&1
+          rc=$?
+          if [ "$rc" -eq 0 ]; then
+            echo "clock-drift: no calendar-dependent failure at +400d"
+            exit 0
+          fi
+          WS=$(grep -oE '^> [^ ]+@[^ ]+ test' "$WORK/drift.log" | tail -2 | tr '\n' ' ')
+          {
+            echo "### Clock-drift probe — the suite FAILS at +400d"
+            echo
+            echo "It passes at the real clock, so a test here depends on the date. Last workspace markers: ${WS:-none parsed}"
+            echo
+            echo '```'
+            tail -40 "$WORK/drift.log"
+            echo '```'
+          } | tee -a "${GITHUB_STEP_SUMMARY:-/dev/null}"
+          exit 1

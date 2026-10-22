@@ -1,0 +1,55 @@
+{
+  "name": "@dekimuhq/forget-keystore",
+  "version": "0.2.0",
+  "description": "Per-subject crypto-shred: envelope-encrypt subject data under a per-subject DEK wrapped by a workspace KEK; shred destroys the wrapped DEK in the registry. Once it is gone from every store that held it, backups included, the ciphertext has no key this package can recover.",
+  "license": "Apache-2.0",
+  "type": "module",
+  "main": "./dist/index.cjs",
+  "module": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js",
+      "require": "./dist/index.cjs"
+    }
+  },
+  "files": [
+    "dist",
+    "README.md",
+    "LICENSE",
+    "CHANGELOG.md",
+    "SECURITY.md",
+    "CONTRIBUTING.md"
+  ],
+  "engines": {
+    "node": ">=22"
+  },
+  "scripts": {
+    "build": "tsup",
+    "prepack": "npm run build",
+    "typecheck": "tsc --noEmit -p tsconfig.json",
+    "test": "vitest run",
+    "dev": "tsup --watch"
+  },
+  "dependencies": {
+    "@dekimuhq/crypto": "^1.4.0"
+  },
+  "devDependencies": {
+    "tsup": "^8.3.0",
+    "typescript": "^6.0.3",
+    "vitest": "^4.1.11"
+  },
+  "publishConfig": {
+    "access": "public"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/dekimuhq/forget.git",
+    "directory": "packages/forget-keystore"
+  },
+  "homepage": "https://github.com/dekimuhq/forget/tree/main/packages/forget-keystore#readme",
+  "bugs": {
+    "url": "https://github.com/dekimuhq/forget/issues"
+  }
+}

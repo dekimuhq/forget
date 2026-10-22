@@ -1,0 +1,59 @@
+{
+  "name": "@dekimuhq/forget-receipt",
+  "version": "0.3.0",
+  "description": "Signed forget.* receipts: forget.destruction.v1 (deletion event bound to roster roots) + forget.model-disposition.v1 (model dimension, bound to a destruction receipt); verify recomputes the signed payload.",
+  "license": "Apache-2.0",
+  "type": "module",
+  "main": "./dist/index.cjs",
+  "module": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js",
+      "require": "./dist/index.cjs"
+    }
+  },
+  "files": [
+    "dist",
+    "README.md",
+    "LICENSE",
+    "CHANGELOG.md",
+    "SECURITY.md",
+    "CONTRIBUTING.md"
+  ],
+  "engines": {
+    "node": ">=22"
+  },
+  "scripts": {
+    "build": "tsup",
+    "prepack": "npm run build",
+    "typecheck": "tsc --noEmit -p tsconfig.json",
+    "test": "vitest run",
+    "dev": "tsup --watch"
+  },
+  "dependencies": {
+    "@dekimuhq/crypto": "^1.4.0",
+    "@dekimuhq/forget-roster": "^0.2.0",
+    "@noble/curves": "^1.8.1",
+    "@noble/hashes": "^1.6.1"
+  },
+  "devDependencies": {
+    "@dekimuhq/forget-keystore": "^0.2.0",
+    "tsup": "^8.3.0",
+    "typescript": "^6.0.3",
+    "vitest": "^4.1.11"
+  },
+  "publishConfig": {
+    "access": "public"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/dekimuhq/forget.git",
+    "directory": "packages/forget-receipt"
+  },
+  "homepage": "https://github.com/dekimuhq/forget/tree/main/packages/forget-receipt#readme",
+  "bugs": {
+    "url": "https://github.com/dekimuhq/forget/issues"
+  }
+}

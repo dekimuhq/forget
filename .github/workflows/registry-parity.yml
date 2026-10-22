@@ -1,0 +1,42 @@
+name: registry parity · npmjs vs GitHub Packages
+
+# Weekly drift check between the two registries the `@dekimuhq` scope lives on.
+# release.yml runs the same check after every publish; this catches a version
+# that reached one registry by any other path. Reds on disagreement — see
+# scripts/registry-parity.mjs for what counts.
+
+on:
+  schedule:
+    - cron: "23 7 * * 1"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  parity:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    # GH_PACKAGES_TOKEN is an environment secret (main-only), not repo-level.
+    environment: release
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version: 24.21.0
+
+      - name: GitHub Packages read credential
+        env:
+          GH_PACKAGES_TOKEN: ${{ secrets.GH_PACKAGES_TOKEN }}
+        run: |
+          [ -n "$GH_PACKAGES_TOKEN" ] || { echo "::error::GH_PACKAGES_TOKEN is not set — GitHub Packages is unreadable"; exit 1; }
+          # Leading newline: setup-node writes its .npmrc WITHOUT a trailing EOL, so a
+          # bare append glues this line onto its last one and npm sees no auth (ENEEDAUTH).
+          printf '\n%s\n' '//npm.pkg.github.com/:_authToken=${GH_PACKAGES_TOKEN}' >> ~/.npmrc
+
+      - name: Parity
+        env:
+          GH_PACKAGES_TOKEN: ${{ secrets.GH_PACKAGES_TOKEN }}
+        run: node scripts/registry-parity.mjs

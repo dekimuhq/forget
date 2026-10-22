@@ -1,0 +1,56 @@
+{
+  "name": "@dekimuhq/crypto",
+  "version": "1.4.0",
+  "description": "AES-256-GCM field encryption (enc:v1: wire format), the shared receipt Signer contract, and a WebCrypto end-to-end encryption module (./vault).",
+  "license": "Apache-2.0",
+  "type": "module",
+  "main": "./dist/index.cjs",
+  "module": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js",
+      "require": "./dist/index.cjs"
+    },
+    "./vault": {
+      "types": "./dist/vault.d.ts",
+      "import": "./dist/vault.js"
+    }
+  },
+  "files": [
+    "dist",
+    "README.md",
+    "LICENSE",
+    "CHANGELOG.md",
+    "SECURITY.md",
+    "CONTRIBUTING.md"
+  ],
+  "engines": {
+    "node": ">=22"
+  },
+  "scripts": {
+    "build": "tsup",
+    "prepack": "npm run build",
+    "typecheck": "tsc --noEmit -p tsconfig.json",
+    "test": "vitest run",
+    "dev": "tsup --watch"
+  },
+  "devDependencies": {
+    "tsup": "^8.3.0",
+    "typescript": "^6.0.3",
+    "vitest": "^4.1.11"
+  },
+  "publishConfig": {
+    "access": "public"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/dekimuhq/forget.git",
+    "directory": "packages/crypto"
+  },
+  "homepage": "https://github.com/dekimuhq/forget/tree/main/packages/crypto#readme",
+  "bugs": {
+    "url": "https://github.com/dekimuhq/forget/issues"
+  }
+}
