@@ -13,7 +13,13 @@ Email **security@dekimu.com** with:
 - Your assessment of impact (false-verified, false-rejected, proof forgery, key exposure, plaintext exposure, denial of verify, etc.).
 - Whether you intend to publish your own write-up, and on what timeline.
 
+You can also report privately through GitHub: **Security → Report a vulnerability** on [`dekimuhq/forget`](https://github.com/dekimuhq/forget/security/advisories/new).
+
 You should receive a human acknowledgement within **3 business days**.
+
+## How fixes are prepared
+
+A fix for a vulnerability that is not yet public is never developed in the open. It is prepared in a GitHub security advisory's temporary private fork, reviewed there, and kept off `main` until a patched release is ready. The advisory, the fix commit and the patched release are then published together. Dekimu's own products that depend on the affected package are updated to the patched version before the advisory is published, inside the disclosure window below.
 
 ## Disclosure window
 
