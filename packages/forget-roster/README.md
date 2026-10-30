@@ -13,6 +13,7 @@ import {
   ed25519Signer, publicKeyOf,
 } from "@dekimuhq/forget-roster";
 
+// seed: 32-byte Ed25519 seed (Uint8Array) · now: ISO-8601 string · priorRoot: previous root hex, or null for the first
 const signer = ed25519Signer(seed, "roster-key-1");
 const resolveKey = (id: string) => { if (id !== "roster-key-1") throw new Error("untrusted"); return publicKeyOf(seed); };
 

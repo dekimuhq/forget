@@ -1,5 +1,11 @@
 # @dekimuhq/forget-roster
 
+## 0.2.2
+
+### Patch Changes
+
+- README: document the types of `seed`, `now` and `priorRoot` in the usage example.
+
 ## 0.2.0
 
 ### Minor Changes

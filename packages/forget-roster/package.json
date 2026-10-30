@@ -1,6 +1,6 @@
 {
   "name": "@dekimuhq/forget-roster",
-  "version": "0.2.0",
+  "version": "0.2.2",
   "description": "Interval-leaf range-Merkle roster of active subjects with signed roots and non-inclusion (proof-of-absence) proofs.",
   "license": "Apache-2.0",
   "type": "module",
