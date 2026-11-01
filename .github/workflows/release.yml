@@ -134,6 +134,10 @@ jobs:
           # Empty once trusted publishing is configured; npm then uses OIDC.
           NODE_AUTH_TOKEN: ${{ secrets.NPM_BOOTSTRAP_TOKEN }}
           RELEASE_SKIP_BUILD: '1'
+          # npm reports why trusted publishing (OIDC) was skipped or refused only
+          # at verbose level; without it a failed exchange surfaces as a bare
+          # ENEEDAUTH (run 41099253660). npm redacts tokens in its logs.
+          NPM_CONFIG_LOGLEVEL: verbose
         # No git tags are created: the release is identified by the commit and
         # the registries' versions (and the job keeps contents: read).
         run: npm run release -- --no-git-tag
