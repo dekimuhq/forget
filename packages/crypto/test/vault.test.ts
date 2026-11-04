@@ -216,10 +216,12 @@ describe("recovery phrase", () => {
   });
 
   it("rejects a tampered phrase (wrong word)", async () => {
-    const vaultKey = await generateVaultKey();
-    const rp = await generateRecoveryPhrase(vaultKey);
-    const words = rp.phrase.split(" ");
-    words[0] = words[0] === "abandon" ? "ability" : "abandon";
+    // Fixed BIP39 vector (all-zero entropy). A random key flaked ~1/256:
+    // the checksum is 8 bits, so some one-word swaps still validate.
+    const valid = `${"abandon ".repeat(23)}art`;
+    expect(await validateRecoveryPhrase(valid)).toBe(true);
+    const words = valid.split(" ");
+    words[0] = "ability";
     expect(await validateRecoveryPhrase(words.join(" "))).toBe(false);
   });
 
