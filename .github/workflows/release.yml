@@ -19,9 +19,12 @@ name: release · publish to npmjs + GitHub Packages
 #   A package's FIRST npmjs publish cannot use OIDC (trusted publishing needs
 #   the package to exist), so it needs NPM_BOOTSTRAP_TOKEN (granular,
 #   short-lived); delete that secret once trusted publishing is configured.
-# - GitHub Packages: GH_PACKAGES_TOKEN, a classic PAT with write:packages. The
-#   default GITHUB_TOKEN is refused (403 write_package) on the org's private
-#   packages, which are not linked to this repo.
+# - GitHub Packages: the job's own GITHUB_TOKEN (packages: write) — no stored
+#   token. GitHub Packages npm uses granular permissions: the token can update
+#   a package only when this repository is in that package's "Manage Actions
+#   access" list with the Write role (package settings on GitHub). Being the
+#   package's linked repository is not enough. A package this workflow creates
+#   is granted access automatically and takes this repository's visibility.
 
 on:
   workflow_dispatch:
@@ -67,7 +70,8 @@ jobs:
     environment: release
     permissions:
       contents: read
-      id-token: write   # OIDC → npm trusted-publishing token + provenance — nothing else
+      id-token: write   # OIDC → npm trusted-publishing token + provenance
+      packages: write   # GITHUB_TOKEN → GitHub Packages publish
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
         with:
@@ -96,30 +100,16 @@ jobs:
         run: node scripts/check-dist.mjs
 
       # Both legs' credentials are proven before anything is published, so a
-      # dead GitHub token cannot strand a release on npmjs alone.
-      - name: GitHub Packages credential works?
+      # GitHub Packages leg without access cannot strand a release on npmjs alone.
+      - name: GitHub Packages access works?
         env:
-          GH_PACKAGES_TOKEN: ${{ secrets.GH_PACKAGES_TOKEN }}
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
-          [ -n "$GH_PACKAGES_TOKEN" ] || { echo "::error::GH_PACKAGES_TOKEN is not set on the release environment"; exit 1; }
-          # npm expands ${GH_PACKAGES_TOKEN} at read time; the value never lands on disk.
+          # npm expands ${GITHUB_TOKEN} at read time; the value never lands on disk.
           # Leading newline: setup-node writes its .npmrc WITHOUT a trailing EOL, so a
           # bare append glues this line onto its last one and npm sees no auth (ENEEDAUTH).
-          printf '\n%s\n' '//npm.pkg.github.com/:_authToken=${GH_PACKAGES_TOKEN}' >> "$NPM_CONFIG_USERCONFIG"
-          npm whoami --registry=https://npm.pkg.github.com >/dev/null \
-            || { echo "::error::GH_PACKAGES_TOKEN is rejected by npm.pkg.github.com"; exit 1; }
-          # Least privilege, enforced: a classic PAT with `repo` reads and writes every
-          # private repo its owner can reach, and it would sit in a public repo's
-          # environment. write:packages (+ the read:packages it implies) is all npm needs.
-          scopes=$(curl -fsS -o /dev/null -D - -H "Authorization: token $GH_PACKAGES_TOKEN" https://api.github.com/ \
-            | tr -d '\r' | sed -n 's/^x-oauth-scopes: *//Ip')
-          echo "GH_PACKAGES_TOKEN scopes: ${scopes:-<none>}"
-          for s in ${scopes//,/ }; do
-            case "$s" in write:packages|read:packages) ;;
-              *) echo "::error::GH_PACKAGES_TOKEN carries scope '$s' — re-mint it with write:packages only"; exit 1 ;;
-            esac
-          done
-          case ",${scopes// /}," in *,write:packages,*) ;; *) echo "::error::GH_PACKAGES_TOKEN lacks write:packages"; exit 1 ;; esac
+          printf '\n%s\n' '//npm.pkg.github.com/:_authToken=${GITHUB_TOKEN}' >> "$NPM_CONFIG_USERCONFIG"
+          node scripts/github-packages-preflight.mjs
 
       # A brand-new package cannot use trusted publishing for its first npmjs
       # version; fail here, before anything ships, with the bootstrap steps.
@@ -130,7 +120,7 @@ jobs:
 
       - name: Publish (npmjs, then GitHub Packages) + registry parity
         env:
-          GH_PACKAGES_TOKEN: ${{ secrets.GH_PACKAGES_TOKEN }}
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           # Empty once trusted publishing is configured; npm then uses OIDC.
           NODE_AUTH_TOKEN: ${{ secrets.NPM_BOOTSTRAP_TOKEN }}
           RELEASE_SKIP_BUILD: '1'

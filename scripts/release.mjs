@@ -15,7 +15,7 @@
 // `npm info` existence check and the `npm publish` itself.
 //
 // npmjs goes first: it is the public, canonical registry, and the GitHub leg's
-// credential is cheap to prove beforehand (release.yml runs `npm whoami`).
+// access is cheap to prove beforehand (scripts/github-packages-preflight.mjs).
 //
 // Re-running after a partial failure resumes: changeset skips versions a
 // registry already lists. One window it cannot cover: right after a publish,

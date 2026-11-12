@@ -12,13 +12,12 @@ on:
 
 permissions:
   contents: read
+  packages: read   # GITHUB_TOKEN reads the private GitHub Packages mirror
 
 jobs:
   parity:
     runs-on: ubuntu-latest
     timeout-minutes: 10
-    # GH_PACKAGES_TOKEN is an environment secret (main-only), not repo-level.
-    environment: release
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
         with:
@@ -27,16 +26,15 @@ jobs:
         with:
           node-version: 24.21.0
 
+      # The job's own GITHUB_TOKEN, no stored token. It can read a package only
+      # when this repository is in the package's "Manage Actions access" list.
       - name: GitHub Packages read credential
-        env:
-          GH_PACKAGES_TOKEN: ${{ secrets.GH_PACKAGES_TOKEN }}
         run: |
-          [ -n "$GH_PACKAGES_TOKEN" ] || { echo "::error::GH_PACKAGES_TOKEN is not set — GitHub Packages is unreadable"; exit 1; }
           # Leading newline: setup-node writes its .npmrc WITHOUT a trailing EOL, so a
           # bare append glues this line onto its last one and npm sees no auth (ENEEDAUTH).
-          printf '\n%s\n' '//npm.pkg.github.com/:_authToken=${GH_PACKAGES_TOKEN}' >> ~/.npmrc
+          printf '\n%s\n' '//npm.pkg.github.com/:_authToken=${GITHUB_TOKEN}' >> ~/.npmrc
 
       - name: Parity
         env:
-          GH_PACKAGES_TOKEN: ${{ secrets.GH_PACKAGES_TOKEN }}
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: node scripts/registry-parity.mjs
