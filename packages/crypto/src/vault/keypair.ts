@@ -36,6 +36,81 @@ export async function importPublicKey(
   ]);
 }
 
+/** Thrown when a claimed public key does not belong to a private key. */
+export class VaultKeyMismatchError extends Error {
+  constructor(message = "public key does not match the private key") {
+    super(message);
+    this.name = "VaultKeyMismatchError";
+  }
+}
+
+/**
+ * Derive the RSA-OAEP public key that belongs to a private key.
+ *
+ * Reads the private JWK and keeps only the public members (n, e). Requires an
+ * extractable private key, which is what decryptPrivateKey and generateKeypair
+ * produce. Throws VaultKeyMismatchError if the key cannot be exported.
+ */
+export async function derivePublicKeyFromPrivate(
+  privateKey: CryptoKey,
+): Promise<CryptoKey> {
+  let jwk: JsonWebKey;
+  try {
+    jwk = await crypto.subtle.exportKey("jwk", privateKey);
+  } catch {
+    throw new VaultKeyMismatchError(
+      "private key is not extractable; cannot derive its public key",
+    );
+  }
+  if (jwk.kty !== "RSA" || !jwk.n || !jwk.e) {
+    throw new VaultKeyMismatchError("private key is not an RSA key");
+  }
+  return crypto.subtle.importKey(
+    "jwk",
+    { kty: "RSA", n: jwk.n, e: jwk.e, alg: jwk.alg, ext: true },
+    RSA_ALGORITHM,
+    true,
+    ["encrypt", "wrapKey"],
+  );
+}
+
+/**
+ * Verify that a claimed public key (for example one supplied by a server) is
+ * the public half of `privateKey`, and return the key derived from the private
+ * key. The claimed value is never used for anything but the comparison.
+ *
+ * Optionally also checks an expected key id. Throws VaultKeyMismatchError on any
+ * mismatch or if the claimed key is malformed.
+ */
+export async function verifyPublicKeyBinding(
+  privateKey: CryptoKey,
+  claimed: ExportedPublicKey,
+  opts: { kid?: string } = {},
+): Promise<CryptoKey> {
+  const derived = await derivePublicKeyFromPrivate(privateKey);
+  const derivedSpki = new Uint8Array(await crypto.subtle.exportKey("spki", derived));
+  let claimedSpki: Uint8Array;
+  try {
+    claimedSpki = fromBase64Url(claimed.spki);
+  } catch {
+    throw new VaultKeyMismatchError("claimed public key is malformed");
+  }
+  if (!bytesEqual(derivedSpki, claimedSpki)) {
+    throw new VaultKeyMismatchError();
+  }
+  if (opts.kid !== undefined && opts.kid !== (await kidFromSpki(toBuffer(derivedSpki)))) {
+    throw new VaultKeyMismatchError("key id does not match the private key");
+  }
+  return derived;
+}
+
+function bytesEqual(a: Uint8Array, b: Uint8Array): boolean {
+  if (a.length !== b.length) return false;
+  let diff = 0;
+  for (let i = 0; i < a.length; i++) diff |= a[i]! ^ b[i]!;
+  return diff === 0;
+}
+
 /**
  * Derive a key id from an exported public key: base64url(SHA-256(spki)[0..16]).
  *
