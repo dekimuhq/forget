@@ -1,6 +1,6 @@
 {
   "name": "@dekimuhq/crypto",
-  "version": "1.4.0",
+  "version": "1.5.0",
   "description": "AES-256-GCM field encryption (enc:v1: wire format), the shared receipt Signer contract, and a WebCrypto end-to-end encryption module (./vault).",
   "license": "Apache-2.0",
   "type": "module",
