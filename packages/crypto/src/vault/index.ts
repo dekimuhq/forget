@@ -31,6 +31,9 @@ export {
   decryptPrivateKey,
   encryptVaultKey,
   decryptVaultKey,
+  derivePublicKeyFromPrivate,
+  verifyPublicKeyBinding,
+  VaultKeyMismatchError,
 } from "./keypair.js";
 
 // Content encryption
@@ -64,6 +67,7 @@ import {
   decryptPrivateKey,
   encryptVaultKey,
   decryptVaultKey,
+  verifyPublicKeyBinding,
 } from "./keypair.js";
 import { generateRecoveryPhrase, recoverVaultKey } from "./recovery.js";
 import { toBase64Url } from "./encoding.js";
@@ -116,6 +120,10 @@ export interface UnlockResult {
 
 /**
  * Unlock a vault on login using the user's password.
+ *
+ * The returned public key is derived from the decrypted private key. The
+ * bundle's `publicKey` is only compared against it, never trusted: a mismatch
+ * throws VaultKeyMismatchError.
  */
 export async function unlockVault(
   password: string,
@@ -125,27 +133,36 @@ export async function unlockVault(
   const salt = fromBase64Url(bundle.salt);
   const masterKey = await deriveKey(password, salt);
   const vaultKey = await decryptVaultKey(bundle.encryptedVaultKey, masterKey);
-  const [privateKey, publicKey] = await Promise.all([
-    decryptPrivateKey(bundle.encryptedPrivateKey, vaultKey),
-    (await import("./keypair.js")).importPublicKey(bundle.publicKey),
-  ]);
-
-  return { privateKey, publicKey, vaultKey };
+  return unlockVaultWithVaultKey(bundle, vaultKey);
 }
 
 /**
  * Unlock a vault using a recovery phrase (password lost).
+ * Same public-key binding check as unlockVault.
  */
 export async function unlockVaultWithRecovery(
   phrase: string,
   bundle: VaultBundle,
 ): Promise<UnlockResult> {
   const vaultKey = await recoverVaultKey(phrase);
-  const [privateKey, publicKey] = await Promise.all([
-    decryptPrivateKey(bundle.encryptedPrivateKey, vaultKey),
-    (await import("./keypair.js")).importPublicKey(bundle.publicKey),
-  ]);
+  return unlockVaultWithVaultKey(bundle, vaultKey);
+}
 
+/**
+ * Unlock a vault from an already-held vault key (for example one restored from
+ * device secure storage). Decrypts the private key, derives the public key from
+ * it, and throws VaultKeyMismatchError if `bundle.publicKey` is not its public
+ * half. Use this instead of importing `bundle.publicKey` directly.
+ */
+export async function unlockVaultWithVaultKey(
+  bundle: VaultBundle,
+  vaultKey: CryptoKey,
+): Promise<UnlockResult> {
+  const privateKey = await decryptPrivateKey(
+    bundle.encryptedPrivateKey,
+    vaultKey,
+  );
+  const publicKey = await verifyPublicKeyBinding(privateKey, bundle.publicKey);
   return { privateKey, publicKey, vaultKey };
 }
 
