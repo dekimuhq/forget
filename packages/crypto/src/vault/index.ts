@@ -39,6 +39,19 @@ export {
 // Content encryption
 export { encryptContent, decryptContent } from "./content.js";
 
+// Context-bound envelope (zkv2)
+export {
+  encryptBlob,
+  decryptBlob,
+  deriveWorkspaceDataKey,
+  derivePersonalDataKey,
+  blobAad,
+  BlobContextError,
+  WDK_INFO_PREFIX,
+  PDK_INFO,
+} from "./blob.js";
+export type { BlobKeys, DecryptedBlob } from "./blob.js";
+
 // Recovery
 export {
   generateRecoveryPhrase,
@@ -53,9 +66,16 @@ export type {
   ExportedPublicKey,
   VaultBundle,
   RecoveryPhrase,
+  BlobScope,
+  BlobPurpose,
+  BlobClass,
+  BlobContext,
+  ExpectedBlobContext,
+  DataKey,
+  EncryptedContentV2,
 } from "./types.js";
 
-export { VAULT_VERSION, KID_BYTES } from "./types.js";
+export { VAULT_VERSION, VAULT_VERSION_V2, KID_BYTES } from "./types.js";
 
 // ── High-level flows ──────────────────────────────────────────────
 

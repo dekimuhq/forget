@@ -1,6 +1,9 @@
 /** Version prefix for all vault wire formats. */
 export const VAULT_VERSION = "zkv1" as const;
 
+/** Version tag of the context-bound envelope (encryptBlob / decryptBlob). */
+export const VAULT_VERSION_V2 = "zkv2" as const;
+
 /** PBKDF2 iteration count — OWASP 2023 recommendation for SHA-256. */
 export const KDF_ITERATIONS = 600_000;
 
@@ -79,4 +82,58 @@ export interface RecoveryPhrase {
   words: readonly string[];
   /** Space-separated phrase for display. */
   phrase: string;
+}
+
+/** `ws:<workspaceId>` or `u:<userId>`. */
+export type BlobScope = `ws:${string}` | `u:${string}`;
+
+export type BlobPurpose = "field" | "file" | "backup" | "share";
+
+/**
+ * `member`: AES-256-GCM under a derived data key; only key holders can write it.
+ * `inbound`: hybrid RSA-OAEP for public-key-only writers; not authenticated.
+ */
+export type BlobClass = "member" | "inbound";
+
+/** Where a blob lives. Every field is bound into the AAD. */
+export interface BlobContext {
+  scope: BlobScope;
+  /** Key id of the scope key the blob belongs to. */
+  kid: string;
+  /** Key epoch of the scope. */
+  epoch: number;
+  purpose: BlobPurpose;
+  /** Collection, record id and field name the blob is stored under. */
+  coll: string;
+  rec: string;
+  field: string;
+  /** Record version; 0 for the first write. */
+  ver: number;
+}
+
+/** What a reader asked for. Built by the reader, never read off the blob. */
+export interface ExpectedBlobContext extends BlobContext {
+  /** Refuse zkv1 blobs (set once a scope has been migrated). */
+  rejectV1?: boolean;
+}
+
+/** A symmetric data key derived for one scope. */
+export interface DataKey {
+  scope: BlobScope;
+  /** Set for workspace keys, where the kid is part of the derivation. */
+  kid?: string;
+  /** Non-extractable AES-256-GCM key. */
+  key: CryptoKey;
+}
+
+/** Context-bound envelope. The header fields are authenticated as AAD. */
+export interface EncryptedContentV2 extends BlobContext {
+  v: typeof VAULT_VERSION_V2;
+  cls: BlobClass;
+  /** Base64url-encoded IV. */
+  iv: string;
+  /** Base64url-encoded AES-256-GCM ciphertext. */
+  data: string;
+  /** `inbound` only: base64url RSA-OAEP-wrapped content key. */
+  key?: string;
 }
